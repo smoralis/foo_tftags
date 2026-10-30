@@ -7,6 +7,7 @@ A foobar2000 component that publishes long titleformat scripts as **global tag f
 There are ten slots. Each has a **tag name** and a **titleformat script**. Open **Preferences > Tools > TF Tags**.
 
 | Slot | Default tag name | Default script |
+
 | 01-20 | `01` ... `10` | empty |
 
 The field name is always `tf_` plus the tag name, so slot 1 is `%tf_albumartist%`. Tag names are lowercased and only letters, digits and `_` are kept. Empty or duplicate names get a slot number (`tf_slot4`, `tf_artist_2`). An empty script (or a script that returns nothing) makes the field empty, so `$if(%tf_artist%,...)` works.
@@ -31,3 +32,7 @@ The field name is always `tf_` plus the tag name, so slot 1 is `%tf_albumartist%
 ## Build
 
 Visual Studio 2022, C++17, foobar2000 SDK. Link `foobar2000_SDK`, `foobar2000_component_client` and `pfc`, with the same project settings as foo_countryflags. The file must stay pure ASCII.
+
+### Screenshots
+
+![Alt text](/screenshot.png?raw=true "Preferences")
