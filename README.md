@@ -33,6 +33,11 @@ The field name is always `tf_` plus the tag name, so slot 1 is `%tf_albumartist%
 
 Visual Studio 2022, C++17, foobar2000 SDK. Link `foobar2000_SDK`, `foobar2000_component_client` and `pfc`, with the same project settings as foo_countryflags. The file must stay pure ASCII.
 
-### Screenshots
+## License
+
+MIT License
+
+
+### Screenshot
 
 ![Alt text](/screenshot.png?raw=true "Preferences")
