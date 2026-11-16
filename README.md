@@ -4,7 +4,7 @@ A foobar2000 component that publishes long titleformat scripts as **global tag f
 
 ## Slots
 
-You can have **any number of slots**. Each has a **tag name** and a **titleformat script**. Open **Preferences > Tools > TF Tags**: the list on the left shows the slots, **Add** appends a new one (named `01`, `02`, ... for the first free number) and **Remove** deletes the selected slot after a confirmation. There is always at least one slot.
+You can have **any number of slots**. Each has a **tag name** and a **titleformat script**. Open **Preferences > Tools > TF Tags**: the list on the left shows the slots, **Add** appends a new one (named `01`, `02`, ... for the first free number) and **Remove** deletes the selected slot after a confirmation, and **Up** / **Down** move it in the list (the order is saved, and reordering never asks for a restart). There is always at least one slot.
 
 A new slot starts with an empty script. Slots are saved as one list, so the number is not limited; settings saved by older versions with 20 fixed slots are carried over (the slots that had a script or a table).
 
@@ -36,7 +36,6 @@ A slot can run its result through a **replacement table**, which replaces whole 
 - **Several names in one value (single-value tags):** if the whole value is not in the table, it is split at `;` and every name is replaced on its own, so `Korn;Madonna` or `Korn; Madonna` is looked up as `Korn` and `Madonna`. The original separators and spaces stay as they were (`rem;t-rex;Unknown` becomes `R.E.M.;T. Rex;Unknown`). Use a `"$split"` entry to change the separators, e.g. `"$split": [";", ", ", " / "]`, or `"$split": []` to switch splitting off. Runs of up to 6 parts are tried first, longest first, so a name that contains a separator, such as `"Earth, Wind & Fire"` with `", "` as a separator, still matches as a whole. Names that are not in the table are left alone, so splitting never damages a value. `$split` is not a name and is never used as a result. In the slot's script, `$meta_sep(artist,;)` gives every value of a multi-value tag joined with `;`.
 - A name is replaced once (no chaining). Tables are re-read within about 2 seconds after the file changes, so you can edit them while foobar2000 runs. If the file is missing or not valid JSON, the field keeps its unreplaced value and the Preview says so.
 - Every field that uses it, such as `%tf_artist%`, works in every component (playlist views, panels, scripts), so the table lives in one place instead of a copy in each script.
-
 
 ## Import and export
 

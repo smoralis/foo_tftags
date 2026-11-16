@@ -52,7 +52,7 @@
 #pragma comment(lib, "Comdlg32.lib")
 #pragma comment(lib, "Shell32.lib")
 
-DECLARE_COMPONENT_VERSION("TF Tags", "0.1.2",
+DECLARE_COMPONENT_VERSION("TF Tags", "0.1.3",
     "Publishes long titleformat scripts as global tag fields (%tf_<name>%).");
 VALIDATE_COMPONENT_FILENAME("foo_tftags.dll");
 
@@ -1184,13 +1184,14 @@ namespace {
         { "import_empty", "The file has no slots with a script." },
         { "add_slot", "Add" },
         { "remove_slot", "Remove" },
+        { "move_up", "Up" },
+        { "move_down", "Down" },
         { "remove_confirm", "Remove the slot {0}?\n\nThe field stops working after you apply the change and restart foobar2000." },
         { "import_invalid", "This is not a TF Tags settings file." },
         { "import_failed", "The settings file could not be read." },
         { "export_failed", "The settings file could not be written." },
         { "table_label", "Replacement table:" },
         { "table_none", "(none)" },
-        { "table_folder", "Open folder" },
         { "table_error", "The replacement table \"{0}\" is missing or is not valid." },
         { "lang_label", "Language:" },
         { "lang_auto", "Automatic (Windows display language)" },
@@ -1963,13 +1964,15 @@ namespace {
     constexpr int ID_TABLEDIR = 2011;
     constexpr int ID_ADD = 2012;
     constexpr int ID_REMOVE = 2013;
+    constexpr int ID_UP = 2014;
+    constexpr int ID_DOWN = 2015;
 
     class tftags_preferences_instance : public preferences_page_instance {
     public:
         tftags_preferences_instance(HWND parent, preferences_page_callback::ptr callback)
             : m_callback(callback), m_wnd(nullptr), m_ready(false), m_current(0),
             m_list(nullptr), m_nameLabel(nullptr), m_hint(nullptr), m_field(nullptr), m_scriptLabel(nullptr),
-            m_name(nullptr), m_script(nullptr), m_result(nullptr), m_note(nullptr), m_langLabel(nullptr), m_langCombo(nullptr), m_previewLabel(nullptr), m_scriptButton(nullptr), m_importButton(nullptr), m_exportButton(nullptr), m_tableLabel(nullptr), m_tableCombo(nullptr), m_tableFolder(nullptr), m_addButton(nullptr), m_removeButton(nullptr),
+            m_name(nullptr), m_script(nullptr), m_result(nullptr), m_note(nullptr), m_langLabel(nullptr), m_langCombo(nullptr), m_previewLabel(nullptr), m_scriptButton(nullptr), m_importButton(nullptr), m_exportButton(nullptr), m_tableLabel(nullptr), m_tableCombo(nullptr), m_tableFolder(nullptr), m_addButton(nullptr), m_removeButton(nullptr), m_upButton(nullptr), m_downButton(nullptr),
             m_uiFont(nullptr), m_monoFont(nullptr), m_brDark(CreateSolidBrush(RGB(32, 32, 32))) {
 
             HINSTANCE hInstance = core_api::get_my_instance();
@@ -2014,6 +2017,12 @@ namespace {
             m_removeButton = CreateWindowExW(0, L"BUTTON", trw("remove_slot").c_str(), WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_PUSHBUTTON,
                 0, 0, 10, 10, m_wnd, reinterpret_cast<HMENU>(static_cast<INT_PTR>(ID_REMOVE)), hInstance, nullptr);
             setFont(m_removeButton, uiFont());
+            m_upButton = CreateWindowExW(0, L"BUTTON", trw("move_up").c_str(), WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_PUSHBUTTON,
+                0, 0, 10, 10, m_wnd, reinterpret_cast<HMENU>(static_cast<INT_PTR>(ID_UP)), hInstance, nullptr);
+            setFont(m_upButton, uiFont());
+            m_downButton = CreateWindowExW(0, L"BUTTON", trw("move_down").c_str(), WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_PUSHBUTTON,
+                0, 0, 10, 10, m_wnd, reinterpret_cast<HMENU>(static_cast<INT_PTR>(ID_DOWN)), hInstance, nullptr);
+            setFont(m_downButton, uiFont());
 
             m_nameLabel = addLabel(trw("name_label").c_str());
             m_name = addEdit(ID_NAME, false);
@@ -2053,7 +2062,7 @@ namespace {
             m_tableCombo = CreateWindowExW(0, L"COMBOBOX", L"", WS_CHILD | WS_VISIBLE | WS_TABSTOP | WS_VSCROLL | CBS_DROPDOWNLIST,
                 0, 0, 10, 10, m_wnd, reinterpret_cast<HMENU>(static_cast<INT_PTR>(ID_TABLE)), hInstance, nullptr);
             setFont(m_tableCombo, uiFont());
-            m_tableFolder = CreateWindowExW(0, L"BUTTON", trw("table_folder").c_str(), WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_PUSHBUTTON,
+            m_tableFolder = CreateWindowExW(0, L"BUTTON", L"...", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_PUSHBUTTON,
                 0, 0, 10, 10, m_wnd, reinterpret_cast<HMENU>(static_cast<INT_PTR>(ID_TABLEDIR)), hInstance, nullptr);
             setFont(m_tableFolder, uiFont());
             fillTableCombo();
@@ -2134,7 +2143,11 @@ namespace {
 
             // Field names are only read at startup, so an added, renamed or removed field needs a
             // restart. Settings are written on exit, so the slots survive it.
-            if (savedFieldNames() != fieldsBefore) {
+            auto sorted = [](std::vector<std::string> list) {
+                std::sort(list.begin(), list.end());
+                return list;
+                };
+            if (sorted(savedFieldNames()) != sorted(fieldsBefore)) {
                 HWND owner = m_wnd ? GetAncestor(m_wnd, GA_ROOT) : nullptr;
                 const int answer = themed_message::show(owner, "TF Tags",
                     tr("restart_prompt"), true, false, IDI_QUESTION);
@@ -2257,9 +2270,10 @@ namespace {
             writeWindow(m_previewLabel, tr("preview_label"));
             writeWindow(m_importButton, tr("import_button"));
             writeWindow(m_tableLabel, tr("table_label"));
-            writeWindow(m_tableFolder, tr("table_folder"));
             writeWindow(m_addButton, tr("add_slot"));
             writeWindow(m_removeButton, tr("remove_slot"));
+            writeWindow(m_upButton, tr("move_up"));
+            writeWindow(m_downButton, tr("move_down"));
             fillTableCombo();
             writeWindow(m_exportButton, tr("export_button"));
             writeWindow(m_note, tr("note_1") + "\n" + tr("note_3"));
@@ -2284,7 +2298,7 @@ namespace {
             if (!m_ready || !m_wnd) return;
             HFONT oldUi = m_uiFont, oldMono = m_monoFont;
             rebuildFonts();
-            for (HWND c : { m_list, m_nameLabel, m_name, m_hint, m_field, m_scriptLabel, m_result, m_note, m_langLabel, m_langCombo, m_previewLabel, m_scriptButton, m_importButton, m_exportButton, m_tableLabel, m_tableCombo, m_tableFolder, m_addButton, m_removeButton })
+            for (HWND c : { m_list, m_nameLabel, m_name, m_hint, m_field, m_scriptLabel, m_result, m_note, m_langLabel, m_langCombo, m_previewLabel, m_scriptButton, m_importButton, m_exportButton, m_tableLabel, m_tableCombo, m_tableFolder, m_addButton, m_removeButton, m_upButton, m_downButton })
                 if (c) setFont(c, uiFont());
             if (m_script) setFont(m_script, m_monoFont ? static_cast<HGDIOBJ>(m_monoFont) : uiFont());
             if (oldUi) DeleteObject(oldUi);
@@ -2408,6 +2422,23 @@ namespace {
             runTest();
             SetFocus(m_name);
             SendMessageW(m_name, EM_SETSEL, 0, -1);
+        }
+
+        // Moves the selected slot up (-1) or down (+1) in the list. The slot keeps its id, so the
+        // registered fields are not affected; only the order shown (and saved) changes.
+        void moveSlot(int delta) {
+            storeCurrent();
+            const long target = (long)m_current + delta;
+            if (target < 0 || target >= (long)m_names.size()) return;
+            const size_t from = m_current, to = (size_t)target;
+            std::swap(m_ids[from], m_ids[to]);
+            std::swap(m_names[from], m_names[to]);
+            std::swap(m_scripts[from], m_scripts[to]);
+            std::swap(m_tables[from], m_tables[to]);
+            m_current = to;
+            refreshList();
+            if (m_callback.is_valid()) m_callback->on_state_changed();
+            SetFocus(m_list);
         }
 
         void removeSlot() {
@@ -2674,9 +2705,12 @@ namespace {
             place(m_note, margin, bottom - rowH - gap - noteH, w - 2 * margin, noteH);
             const int contentBottom = bottom - rowH - gap - noteH - gap;
             const int halfW = (listW - gap) / 2;
-            place(m_addButton, margin, contentBottom - rowH, halfW, rowH);
-            place(m_removeButton, margin + halfW + gap, contentBottom - rowH, listW - halfW - gap, rowH);
-            place(m_list, margin, margin, listW, (std::max)(S(60), contentBottom - margin - rowH - gap));
+            const int rowGap = S(4);
+            place(m_upButton, margin, contentBottom - rowH, halfW, rowH);
+            place(m_downButton, margin + halfW + gap, contentBottom - rowH, listW - halfW - gap, rowH);
+            place(m_addButton, margin, contentBottom - 2 * rowH - rowGap, halfW, rowH);
+            place(m_removeButton, margin + halfW + gap, contentBottom - 2 * rowH - rowGap, listW - halfW - gap, rowH);
+            place(m_list, margin, margin, listW, (std::max)(S(60), contentBottom - margin - 2 * rowH - rowGap - gap));
 
             int y = margin;
             place(m_nameLabel, rightX, y, rightW, labelH); y += labelH + S(2);
@@ -2687,20 +2721,22 @@ namespace {
             place(m_hint, rightX, y + (rowH - labelH) / 2, hintW, labelH);
             place(m_field, rightX + hintW + gap, y, (std::max)(S(80), (std::min)(rightW - hintW - gap, S(260))), rowH);
             y += rowH + gap;
-            // Replacement table row: label, table drop-down, button that opens the folder.
-            // The button keeps its place at the right edge; the label gives way before the
-            // drop-down gets narrower than 90 px, so the three never overlap.
-            const int folderW = textWidth(m_tableFolder) + S(24);
-            int tableLabelW = textWidth(m_tableLabel);
-            int tableComboW = rightW - tableLabelW - 2 * gap - folderW;
-            if (tableComboW < S(90)) {
-                tableComboW = S(90);
-                tableLabelW = (std::max)(S(40), rightW - tableComboW - 2 * gap - folderW);
+            // Replacement table row: label, table drop-down, "..." button that opens the folder.
+            // The label always gets its full text; on a narrow page it moves to a row of its own.
+            const int folderW = S(34);
+            const int tableLabelW = textWidth(m_tableLabel) + S(6);
+            const int comboRoom2 = rightW - tableLabelW - 2 * gap - folderW;
+            if (comboRoom2 >= S(100)) {
+                place(m_tableLabel, rightX, y + (rowH - labelH) / 2, tableLabelW, labelH);
+                place(m_tableCombo, rightX + tableLabelW + gap, y, (std::min)(comboRoom2, S(240)), rowH + S(200));
+                place(m_tableFolder, rightX + rightW - folderW, y, folderW, rowH);
             }
-            tableComboW = (std::min)(tableComboW, S(240));
-            place(m_tableLabel, rightX, y + (rowH - labelH) / 2, tableLabelW, labelH);
-            place(m_tableCombo, rightX + tableLabelW + gap, y, tableComboW, rowH + S(200));
-            place(m_tableFolder, rightX + rightW - folderW, y, folderW, rowH);
+            else {
+                place(m_tableLabel, rightX, y, rightW, labelH);
+                y += labelH + S(2);
+                place(m_tableCombo, rightX, y, (std::max)(S(60), rightW - folderW - gap), rowH + S(200));
+                place(m_tableFolder, rightX + rightW - folderW, y, folderW, rowH);
+            }
             y += rowH + gap;
             // The "..." button opens the large editor; it sits at the right end of the label row.
             const int dotsW = S(34);
@@ -2782,6 +2818,8 @@ namespace {
                 }
                 if (id == ID_ADD && code == BN_CLICKED) { addSlot(); return 0; }
                 if (id == ID_REMOVE && code == BN_CLICKED) { removeSlot(); return 0; }
+                if (id == ID_UP && code == BN_CLICKED) { moveSlot(-1); return 0; }
+                if (id == ID_DOWN && code == BN_CLICKED) { moveSlot(1); return 0; }
                 if (id == ID_EDITOR && code == BN_CLICKED) { openEditor(); return 0; }
                 if (id == ID_EXPORT && code == BN_CLICKED) { exportSettings(); return 0; }
                 if (id == ID_TABLEDIR && code == BN_CLICKED) { openTablesFolder(); return 0; }
@@ -2839,7 +2877,7 @@ namespace {
         bool m_ready;
         bool m_loading = false;
         size_t m_current;
-        HWND m_list, m_nameLabel, m_hint, m_field, m_scriptLabel, m_name, m_script, m_result, m_note, m_langLabel, m_langCombo, m_previewLabel, m_scriptButton, m_importButton, m_exportButton, m_tableLabel, m_tableCombo, m_tableFolder, m_addButton, m_removeButton;
+        HWND m_list, m_nameLabel, m_hint, m_field, m_scriptLabel, m_name, m_script, m_result, m_note, m_langLabel, m_langCombo, m_previewLabel, m_scriptButton, m_importButton, m_exportButton, m_tableLabel, m_tableCombo, m_tableFolder, m_addButton, m_removeButton, m_upButton, m_downButton;
         std::vector<std::string> m_names, m_scripts, m_tables;
         std::vector<std::uint32_t> m_ids;
         std::vector<SlotData> m_saved;  // as last saved
